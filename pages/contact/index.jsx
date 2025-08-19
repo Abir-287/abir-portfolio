@@ -7,30 +7,29 @@ const Contact = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const onSubmit = async (e) => {
-  e.preventDefault();
-  setIsLoading(true);
+    e.preventDefault();
+    setIsLoading(true);
 
-  try {
-    const fd = new FormData(e.target);
-    const payload = Object.fromEntries(fd.entries());
+    try {
+      const fd = new FormData(e.target);
+      const payload = Object.fromEntries(fd.entries());
 
-    const res = await fetch("/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed");
-    alert("Thank you! I’ll get back to you ASAP.");
-    e.target.reset();
-  } catch (err) {
-    alert(err.message || "Network error. Please try again.");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      alert("Thank you! I’ll get back to you ASAP.");
+      e.target.reset();
+    } catch (err) {
+      alert(err.message || "Network error. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="h-full bg-primary/30">
@@ -43,7 +42,7 @@ const Contact = () => {
             exit="hidden"
             className="h2 text-center mb-12"
           >
-            Let's <span className="text-accent">connect.</span>
+            Let&apos;s <span className="text-accent">connect.</span>
           </motion.h2>
 
           <motion.form
@@ -97,7 +96,13 @@ const Contact = () => {
             />
 
             {/* Honeypot input (hidden from users) */}
-            <input type="checkbox" name="botcheck" className="hidden" tabIndex={-1} autoComplete="off" />
+            <input
+              type="checkbox"
+              name="botcheck"
+              className="hidden"
+              tabIndex={-1}
+              autoComplete="off"
+            />
 
             <button
               type="submit"
@@ -106,11 +111,11 @@ const Contact = () => {
               aria-disabled={isLoading}
             >
               <span className={`transition-all duration-500 ${isLoading ? "opacity-50" : ""}`}>
-                {isLoading ? "Sending..." : "Let's talk"}
+                {isLoading ? "Sending..." : "Let\u2019s talk"}
               </span>
               <BsArrowRight
                 className="-translate-y-[120%] opacity-0 group-hover:flex group-hover:-translate-y-0 group-hover:opacity-100 transition-all duration-300 absolute text-[22px]"
-                aria-hidden
+                aria-hidden="true"
               />
             </button>
           </motion.form>
