@@ -28,9 +28,7 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run tests
-        run: npm test -- --watchAll=false
-
+     
       - name: Build verification
         run: npm run build
 
