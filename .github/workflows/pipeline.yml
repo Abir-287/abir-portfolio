@@ -2,9 +2,9 @@ name: Portfolio CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -19,8 +19,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -28,7 +28,6 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-     
       - name: Build verification
         run: npm run build
 
@@ -41,11 +40,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
+      # Keep npm ci but ensure package-lock.json exists
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f "package-lock.json" ]; then
+              npm ci
+          else
+              npm install
+          fi
 
       - name: Build project
         run: npm run build
@@ -82,7 +87,7 @@ jobs:
           script: |
             cd /var/www/portfolio
             ./deploy.sh
-            
+
       - name: Health check
         run: |
           curl -f http://${{ secrets.SERVER_IP }} || exit 1
