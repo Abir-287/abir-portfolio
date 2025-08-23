@@ -34,13 +34,20 @@ jobs:
       - name: Cache node modules
         uses: actions/cache@v3
         with:
-          path: ~/.npm
+          path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install dependencies
+      - name: Install all dependencies
         run: npm ci
+
+      - name: Verify critical dependencies are installed
+        run: |
+          npm list eslint || npm install --save-dev eslint
+          npm list autoprefixer || npm install --save-dev autoprefixer
+          npm list postcss || npm install --save-dev postcss
+          npm list tailwindcss || npm install --save-dev tailwindcss
 
       - name: Run linting
         run: npm run lint
@@ -66,19 +73,26 @@ jobs:
       - name: Cache node modules
         uses: actions/cache@v3
         with:
-          path: ~/.npm
+          path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install dependencies
+      - name: Install all dependencies
         run: npm ci
+
+      - name: Verify critical dependencies are installed
+        run: |
+          npm list eslint || npm install --save-dev eslint
+          npm list autoprefixer || npm install --save-dev autoprefixer
+          npm list postcss || npm install --save-dev postcss
+          npm list tailwindcss || npm install --save-dev tailwindcss
 
       - name: Build project
         run: npm run build
 
       - name: Security audit
-        run: npm audit --audit-level moderate || true # Continue even if audit fails
+        run: npm audit --audit-level moderate || true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -108,7 +122,7 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Install production dependencies
+      - name: Install production dependencies only
         run: |
           cd ./artifacts
           npm ci --only=production
@@ -136,5 +150,16 @@ jobs:
     needs: [test, build, deploy]
     if: failure()
     steps:
+      - name: Debug info on failure
+        run: |
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo "Package.json content:"
+          cat package.json || echo "No package.json"
+          echo "Node modules:"
+          ls node_modules/ || echo "No node_modules"
       - name: Deployment failed notification
         run: echo "❌ Deployment failed! Check the logs for details."
