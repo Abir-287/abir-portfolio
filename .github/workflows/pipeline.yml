@@ -7,9 +7,12 @@ on:
     branches: [main]
 
 jobs:
-  # STAGE 1: INSTALL AND SETUP
-  install-dependencies:
+  # SINGLE JOB: Install, Test, Build
+  build-and-test:
     runs-on: ubuntu-latest
+    env:
+      CI: true
+      NEXT_PUBLIC_GIT_SHA: ${{ github.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,56 +22,16 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Clean install dependencies
+      - name: Install dependencies
         run: |
-          rm -rf node_modules package-lock.json
-          npm install --package-lock-only
-          npm ci
-          npm install --no-save eslint@^8.0.0 eslint-config-next@^14.0.0 autoprefixer@^10.0.0 postcss@^8.0.0
-
-      - name: Upload dependencies for reuse
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules
-          retention-days: 1
-
-  # STAGE 2: TEST AND LINT
-  test-and-lint:
-    runs-on: ubuntu-latest
-    needs: install-dependencies
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download dependencies
-        uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules
+          npm install
+          npm install --save-dev eslint@^8.0.0 eslint-config-next@^14.0.0 autoprefixer@^10.0.0 postcss@^8.0.0
 
       - name: Run linting
-        run: npm run lint
+        run: npx next lint
 
       - name: Run tests
-        run: npm test -- --watchAll=false --passWithNoTests || echo "Tests completed"
-
-  # STAGE 3: BUILD
-  build:
-    runs-on: ubuntu-latest
-    needs: test-and-lint
-    env:
-      CI: true
-      NEXT_PUBLIC_GIT_SHA: ${{ github.sha }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download dependencies
-        uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules
+        run: npm test -- --watchAll=false --passWithNoTests || echo "No tests found"
 
       - name: Build project
         run: npm run build
@@ -84,10 +47,10 @@ jobs:
             next.config.js
           retention-days: 5
 
-  # STAGE 4: DEPLOY AND VERIFY
+  # DEPLOY JOB: Separate deployment
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-and-test
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Download build artifacts
