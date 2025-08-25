@@ -34,8 +34,8 @@ jobs:
 
       - name: Run basic validation
         run: |
-          # Simple check that doesn't require TypeScript
-          node -e "console.log('✅ Basic JavaScript validation passed')"
+
+          # node -e "console.log('✅ Basic JavaScript validation passed')"
 
   deploy:
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/portfolio
-            ./deploy.sh
+            timeout 300 ./deploy.sh || exit 1
 
       - name: Health check
         run: |
