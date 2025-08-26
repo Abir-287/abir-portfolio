@@ -23,6 +23,10 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
+  
+ENV SMTP_HOST=smtp.example.com
+ENV SMTP_USER=your-user
+ENV SMTP_PASS=your-password
 
 # Start the app
 CMD ["npm", "start"]
