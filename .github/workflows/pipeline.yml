@@ -24,7 +24,7 @@ jobs:
         run: npx next lint --strict
 
       - name: Run tests
-        run: npm test -- --watchAll=false --passWithNoTests || echo "Tests completed"
+        run: npm test --watchAll=false --passWithNoTests || echo "Tests completed"
 
   deploy:
     runs-on: ubuntu-latest
@@ -61,3 +61,4 @@ jobs:
           script: |
             docker logs portfolio
             sudo ss -tuln | grep 3000
+            sudo lsof -i :3000
