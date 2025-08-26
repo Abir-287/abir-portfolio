@@ -43,8 +43,21 @@ jobs:
 
       - name: Health check
         run: |
-          sleep 10
-          curl -f http://${{ secrets.SERVER_IP }}:3000 || exit 1
+          for i in {1..5}; do
+            sleep 30
+            curl -f http://${{ secrets.SERVER_IP }}:3000 && exit 0
+            echo "Retrying health check ($i/5)..."
+          done
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
 
-      - name: Success notification
-        run: echo "✅ Deployment completed at $(date)"
+      - name: Capture server logs on failure
+        if: failure()
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker logs portfolio
+            sudo ss -tuln | grep 3000
