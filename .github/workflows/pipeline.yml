@@ -50,21 +50,15 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key.pem
           chmod 600 ssh_key.pem
       - name: Deploy to VM0
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-         host: ${{ env.SERVER_IP }}
-         username: azureuser
-         key: ${{ secrets.SSH_PRIVATE_KEY }}
-         script: |
-            az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-0 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem --command "cd /var/www/portfolio && echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > .env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> .env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> .env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> .env && chmod +x deploy.sh && ./deploy.sh && curl -f http://localhost:3000 || exit 1" || exit 1
-     
+        run: |
+          az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-0 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem --command "cd /var/www/portfolio && echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > .env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> .env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> .env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> .env && chmod +x deploy.sh && ./deploy.sh && curl -f http://localhost:3000 || exit 1" || exit 1
       - name: Deploy to VM1
         uses: appleboy/ssh-action@v0.1.10
         with:
-         host: ${{ env.SERVER_IP }}
-         username: azureuser
-         key: ${{ secrets.SSH_PRIVATE_KEY }}
-         script: |
+          host: ${{ env.SERVER_IP }}
+          username: azureuser
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
             az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-1 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem --command "cd /var/www/portfolio && echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > .env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> .env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> .env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> .env && chmod +x deploy.sh && ./deploy.sh && curl -f http://localhost:3000 || exit 1" || exit 1
       - run: |
           for i in {1..5}; do
@@ -77,5 +71,4 @@ jobs:
       - if: failure()
         name: Rollback on VM0
         run: |
-         az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-0 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem || true
-    
+          az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-0 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem || true
