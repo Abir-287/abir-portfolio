@@ -1,43 +1,81 @@
+import { DefaultAzureCredential } from "@azure/identity";
+import { SecretClient } from "@azure/keyvault-secrets";
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { name, email, subject, message, botcheck } = req.body;
+  
+  // Validate required fields
+  if (!name || !email || !subject || !message) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  
+  // Basic bot check
+  if (botcheck) {
+    return res.status(400).json({ error: "Bot detected" });
+  }
 
   try {
-    const { name, email, subject, message } = req.body || {};
-    if (!name || !email || !subject || !message) {
-      return res.status(400).json({ error: "Missing fields" });
+    let accessKey = process.env.WEB3FORMS_KEY;
+
+    // Only try Azure Key Vault in production if local env var is not set
+    if (!accessKey && process.env.NODE_ENV === "production") {
+      console.log("Attempting to fetch key from Azure Key Vault...");
+      
+      if (!process.env.KEY_VAULT_NAME) {
+        throw new Error("KEY_VAULT_NAME environment variable is required in production");
+      }
+
+      const vaultUrl = `https://${process.env.KEY_VAULT_NAME}.vault.azure.net`;
+      const credential = new DefaultAzureCredential();
+      const client = new SecretClient(vaultUrl, credential);
+      const secret = await client.getSecret("web3forms-key");
+      accessKey = secret.value;
     }
 
-    const access_key = process.env.WEB3FORMS_KEY;
-    if (!access_key) return res.status(500).json({ error: "Missing WEB3FORMS_KEY in .env.local" });
+    if (!accessKey) {
+      throw new Error("WEB3FORMS_KEY is not set. Please add it to your environment variables.");
+    }
 
-    // Map your "subject" -> Web3Forms "_subject" so it sets the email subject line
-    const body = new URLSearchParams({
-      access_key,
+    const formData = {
+      access_key: accessKey,
       name,
       email,
-      message,
-      _subject: subject,     // <-- THIS sets the actual email subject
-      // keep original subject in body too (optional, helps in templates)
       subject,
-    }).toString();
+      message
+    };
 
-    const r = await fetch("https://api.web3forms.com/submit", {
+    const response = await fetch("https://api.web3forms.com/submit", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
-      body,
+      body: JSON.stringify(formData),
     });
 
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok || data?.success === false) {
-      return res.status(502).json({ error: data?.message || `Web3Forms error (HTTP ${r.status})`, provider: data });
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      return res.status(200).json({ 
+        success: true, 
+        message: "Email sent successfully" 
+      });
+    } else {
+      console.error("Web3Forms error:", result);
+      return res.status(500).json({ 
+        error: "Failed to send email", 
+        details: result 
+      });
     }
-
-    return res.status(200).json({ ok: true });
-  } catch (e) {
-    console.error("Contact proxy error:", e);
-    return res.status(500).json({ error: "Server error" });
+  } catch (error) {
+    console.error("Server error:", error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error.message 
+    });
   }
 }

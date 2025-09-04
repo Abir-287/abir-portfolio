@@ -1,32 +1,39 @@
-# Use the official Node.js 18 image as the base
-FROM node:18-alpine
-
-# Set working directory
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copier les fichiers de package d'abord
 COPY package*.json ./
+COPY next.config.mjs ./
 
-# Install dependencies
-RUN npm install
+# Installer TOUTES les dépendances (y compris devDependencies pour le build)
+RUN npm ci
 
-# Copy the rest of the application code
+# Installer les dépendances manquantes spécifiques
+RUN npm install --save-dev eslint
+RUN npm install autoprefixer
+
+# Copier le reste des fichiers
 COPY . .
 
-# Build the Next.js app
+# Build de l'application
 RUN npm run build
 
-# Expose port 3000
-EXPOSE 3000
+FROM node:18-alpine AS production
+WORKDIR /app
 
-# Set environment variables
+# Installer seulement les dépendances de production
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copier les fichiers construits
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.mjs ./
+COPY --from=builder /app/package.json ./
+
+EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
-  
-ENV SMTP_HOST=smtp.example.com
-ENV SMTP_USER=your-user
-ENV SMTP_PASS=your-password
 
-# Start the app
 CMD ["npm", "start"]
