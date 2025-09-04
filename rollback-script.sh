@@ -1,0 +1,2 @@
+#!/bin/bash
+az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-0 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem --command "docker stop portfolio-green 2>/dev/null || true && docker rm portfolio-green 2>/dev/null || true && docker start portfolio-blue 2>/dev/null || true"
