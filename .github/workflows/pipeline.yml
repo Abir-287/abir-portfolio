@@ -15,61 +15,57 @@ jobs:
       - run: npx next lint --strict
       - run: npm test --watchAll=false --passWithNoTests || echo "Tests completed"
   deploy:
-    runs-on: ubuntu-latest
-    needs: quality-checks
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.9.5"
-      - run: terraform init
-        working-directory: terraform
-      - run: terraform apply -auto-approve
-        working-directory: terraform
-        env:
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      - id: get-ip
-        run: echo "SERVER_IP=$(terraform output -raw public_ip_address)" >> $GITHUB_ENV
-        working-directory: terraform
-      - id: get-kv
-        run: echo "KEY_VAULT_NAME=$(terraform output -raw key_vault_name)" >> $GITHUB_ENV
-        working-directory: terraform
-      - run: docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} -p ${{ secrets.ACR_PASSWORD }}
-      - run: |
-          docker build -t portfolio:latest .
-          docker tag portfolio:latest ${{ secrets.ACR_LOGIN_SERVER }}/portfolio:latest
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/portfolio:latest
-      - uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Install Azure CLI Extensions
-        run: |
-          az extension add --name vm-run-command --yes
-          az extension add --name bastion --yes
-      - name: Write .env on VM0
-        run: |
-          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > /var/www/portfolio/.env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> /var/www/portfolio/.env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> /var/www/portfolio/.env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> /var/www/portfolio/.env && chmod 600 /var/www/portfolio/.env" || exit 1
-      - name: Run deploy.sh on VM0
-        run: |
-          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "cd /var/www/portfolio && ./deploy.sh" || exit 1
-      - name: Write .env on VM1
-        run: |
-          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-1 --resource-group portfolio-resource-group --scripts "echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > /var/www/portfolio/.env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> /var/www/portfolio/.env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> /var/www/portfolio/.env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> /var/www/portfolio/.env && chmod 600 /var/www/portfolio/.env" || exit 1
-      - name: Run deploy.sh on VM1
-        run: |
-          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-1 --resource-group portfolio-resource-group --scripts "cd /var/www/portfolio && ./deploy.sh" || exit 1
-      - run: |
-          for i in {1..5}; do
-            sleep 30
-            curl -f http://${{ env.SERVER_IP }} && exit 0
-            echo "Retrying health check ($i/5)..."
-          done
-          echo "❌ Health check failed"
-          exit 1
-      - if: failure()
-        name: Rollback on VM0
-        run: |
-          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "docker stop portfolio-green 2>/dev/null || true && docker rm portfolio-green 2>/dev/null || true && docker start portfolio-blue 2>/dev/null || true" || true
+   runs-on: ubuntu-latest
+   needs: quality-checks
+   steps:
+    - uses: actions/checkout@v4
+    - uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.9.5"
+    - run: terraform init
+      working-directory: terraform
+    - run: terraform apply -auto-approve
+      working-directory: terraform
+      env:
+        ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    - id: get-ip
+      run: echo "SERVER_IP=$(terraform output -raw public_ip_address)" >> $GITHUB_ENV
+      working-directory: terraform
+    - id: get-kv
+      run: echo "KEY_VAULT_NAME=$(terraform output -raw key_vault_name)" >> $GITHUB_ENV
+      working-directory: terraform
+    - run: docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} -p ${{ secrets.ACR_PASSWORD }}
+    - run: |
+        docker build -t portfolio:latest .
+        docker tag portfolio:latest ${{ secrets.ACR_LOGIN_SERVER }}/portfolio:latest
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/portfolio:latest
+    - uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Write .env on VM0
+      run: |
+        az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > /var/www/portfolio/.env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> /var/www/portfolio/.env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> /var/www/portfolio/.env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> /var/www/portfolio/.env && chmod 600 /var/www/portfolio/.env" || exit 1
+    - name: Run deploy.sh on VM0
+      run: |
+        az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "cd /var/www/portfolio && ./deploy.sh" || exit 1
+    - name: Write .env on VM1
+      run: |
+        az vm run-command invoke --command-id RunShellScript --name portfolio-vm-1 --resource-group portfolio-resource-group --scripts "echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > /var/www/portfolio/.env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> /var/www/portfolio/.env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> /var/www/portfolio/.env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> /var/www/portfolio/.env && chmod 600 /var/www/portfolio/.env" || exit 1
+    - name: Run deploy.sh on VM1
+      run: |
+        az vm run-command invoke --command-id RunShellScript --name portfolio-vm-1 --resource-group portfolio-resource-group --scripts "cd /var/www/portfolio && ./deploy.sh" || exit 1
+    - run: |
+        for i in {1..5}; do
+          sleep 30
+          curl -f http://${{ env.SERVER_IP }} && exit 0
+          echo "Retrying health check ($i/5)..."
+        done
+        echo "❌ Health check failed"
+        exit 1
+    - if: failure()
+      name: Rollback on VM0
+      run: |
+        az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "docker stop portfolio-green 2>/dev/null || true && docker rm portfolio-green 2>/dev/null || true && docker start portfolio-blue 2>/dev/null || true" || true
