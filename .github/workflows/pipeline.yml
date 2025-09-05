@@ -45,22 +45,22 @@ jobs:
       - uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Write SSH Key to File
+      - name: Install Azure CLI Extensions
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key.pem
-          chmod 600 ssh_key.pem
-      - name: Deploy to VM0
+          az extension add --name vm-run-command --yes
+          az extension add --name bastion --yes
+      - name: Write .env on VM0
         run: |
-          az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-0 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem --command "cd /var/www/portfolio && ./deploy.sh" || exit 1
-    
-      - name: Deploy to VM1
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ env.SERVER_IP }}
-          username: azureuser
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-1 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem --command "cd /var/www/portfolio && echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > .env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> .env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> .env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> .env && chmod +x deploy.sh && ./deploy.sh && curl -f http://localhost:3000 || exit 1" || exit 1
+          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > /var/www/portfolio/.env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> /var/www/portfolio/.env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> /var/www/portfolio/.env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> /var/www/portfolio/.env && chmod 600 /var/www/portfolio/.env" || exit 1
+      - name: Run deploy.sh on VM0
+        run: |
+          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "cd /var/www/portfolio && ./deploy.sh" || exit 1
+      - name: Write .env on VM1
+        run: |
+          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-1 --resource-group portfolio-resource-group --scripts "echo 'ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}' > /var/www/portfolio/.env && echo 'ACR_USERNAME=${{ secrets.ACR_USERNAME }}' >> /var/www/portfolio/.env && echo 'ACR_PASSWORD=${{ secrets.ACR_PASSWORD }}' >> /var/www/portfolio/.env && echo 'KEY_VAULT_NAME=${{ env.KEY_VAULT_NAME }}' >> /var/www/portfolio/.env && chmod 600 /var/www/portfolio/.env" || exit 1
+      - name: Run deploy.sh on VM1
+        run: |
+          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-1 --resource-group portfolio-resource-group --scripts "cd /var/www/portfolio && ./deploy.sh" || exit 1
       - run: |
           for i in {1..5}; do
             sleep 30
@@ -72,4 +72,4 @@ jobs:
       - if: failure()
         name: Rollback on VM0
         run: |
-          az network bastion ssh --name portfolio-bastion --resource-group portfolio-resource-group --target-resource-id /subscriptions/945fbf19-fca5-4cb8-9924-2512c0381d15/resourceGroups/portfolio-resource-group/providers/Microsoft.Compute/virtualMachines/portfolio-vm-0 --auth-type ssh-key --username azureuser --ssh-key ssh_key.pem || true
+          az vm run-command invoke --command-id RunShellScript --name portfolio-vm-0 --resource-group portfolio-resource-group --scripts "docker stop portfolio-green 2>/dev/null || true && docker rm portfolio-green 2>/dev/null || true && docker start portfolio-blue 2>/dev/null || true" || true
