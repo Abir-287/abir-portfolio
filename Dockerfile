@@ -1,32 +1,26 @@
-# Use the official Node.js 18 image as the base
-FROM node:18-alpine
-
-# Set working directory
+# Stage 1: Builder
+FROM node:18-alpine AS builder
 WORKDIR /app
-
-# Copy package.json and package-lock.json
 COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy the rest of the application code
+RUN npm ci
 COPY . .
-
-# Build the Next.js app
 RUN npm run build
 
-# Expose port 3000
+# Stage 2: Runner
+FROM node:18-alpine AS runner
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+USER nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
 EXPOSE 3000
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+ENV NODE_ENV production
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOST=0.0.0.0
-  
-ENV SMTP_HOST=smtp.example.com
-ENV SMTP_USER=your-user
-ENV SMTP_PASS=your-password
-
-# Start the app
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
