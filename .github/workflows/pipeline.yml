@@ -59,6 +59,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            docker logs portfolio
-            sudo ss -tuln | grep 3000
-            sudo lsof -i :3000
+            docker logs portfolio || true
+            # Use non-sudo alternatives
+            netstat -tuln | grep 3000 || true
+            ss -tuln | grep 3000 || true
