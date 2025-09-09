@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+env:
+  WEB3FORMS_KEY: ${{ secrets.WEB3FORMS_KEY }}
+
 jobs:
   quality-checks:
     runs-on: ubuntu-latest
@@ -36,7 +39,9 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: WEB3FORMS_KEY
           script: |
+            export WEB3FORMS_KEY="$WEB3FORMS_KEY"
             cd /var/www/portfolio
             chmod +x deploy.sh
             ./deploy.sh
@@ -60,6 +65,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             docker logs portfolio || true
-            # Use non-sudo alternatives
             netstat -tuln | grep 3000 || true
             ss -tuln | grep 3000 || true
